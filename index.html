@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ticket Ticker</title>
+<meta name="description" content="Hall ticket board for Network Suite and Data Hall fiber work">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b6e8a'/%3E%3Cpath d='M7 11h18M7 16h12M7 21h15' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <h1>Ticket Ticker</h1>
+    <p>Hall tickets, fiber paths and optics at a glance</p>
+  </div>
+  <div class="top-actions">
+    <span class="src" id="src"></span>
+    <button class="btn" id="btnExport" title="Download the tickets in view as CSV">Export CSV</button>
+    <button class="btn" id="btnImport">Import tickets</button>
+    <button class="btn icon" id="btnTheme" aria-label="Switch theme" title="Switch theme">◐</button>
+  </div>
+</header>
+
+<section class="halls" aria-label="Halls">
+  <span class="label">Network suite</span>
+  <div class="hall-row" id="nsRow"></div>
+  <span class="label">Data hall</span>
+  <div class="hall-row" id="dhRow"></div>
+  <div class="hall-actions">
+    <button class="link-btn" id="allHalls">Select all</button>
+    <button class="link-btn" id="noHalls">Clear</button>
+  </div>
+</section>
+
+<section class="tiles" id="tiles" aria-label="Link status filters"></section>
+
+<section class="filters">
+  <input type="search" id="q" placeholder="Search ticket, host, port, rack…  ( / )" aria-label="Search">
+  <div class="seg" id="tierSeg" role="group" aria-label="Switch tier"></div>
+  <select id="rowSel" aria-label="Row"></select>
+  <div class="seg" id="sideSeg" role="group" aria-label="Goal post side">
+    <button data-v="O" aria-pressed="false">O post</button>
+    <button data-v="C" aria-pressed="false">C post</button>
+  </div>
+  <div class="seg"><button id="fcan" aria-pressed="false">FCAN 46–47</button></div>
+  <button class="link-btn" id="resetFilters">Reset filters</button>
+</section>
+
+<main class="work" id="work">
+  <div class="list" id="list"></div>
+  <aside class="detail" id="detail" aria-live="polite"></aside>
+</main>
+
+<dialog id="dlg">
+  <form class="dlg" method="dialog">
+    <h3>Import tickets</h3>
+    <p>Paste a JSON export from the ticketing tool, or pick a .json file. It stays in this browser.</p>
+    <textarea id="dlgText" spellcheck="false" aria-label="Tickets JSON"></textarea>
+    <div class="err" id="dlgErr"></div>
+    <div class="row">
+      <input type="file" id="dlgFile" accept=".json,application/json" class="grow" aria-label="JSON file">
+      <button type="button" class="btn" id="dlgTemplate">Load template</button>
+      <button type="button" class="btn" id="dlgSample">Back to sample</button>
+      <button type="button" class="btn" id="dlgCancel">Cancel</button>
+      <button type="button" class="btn primary" id="dlgOk">Import</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="js/storage.js"></script>
+<script src="js/model.js"></script>
+<script src="js/sample.js"></script>
+<script src="js/importer.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

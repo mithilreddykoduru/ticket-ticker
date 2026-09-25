@@ -1,0 +1,8 @@
+.DS_Store
+Thumbs.db
+*.log
+
+# real ticket exports stay off GitHub
+*.csv
+tickets*.json
+export*.json
