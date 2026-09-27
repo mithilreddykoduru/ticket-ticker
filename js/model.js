@@ -29,17 +29,22 @@ const RANK = { up: 0, pending: 1, loop: 2, mismatch: 2, norx: 3, notx: 3, failed
 // Order matters here: a looped or mis-patched fiber will usually also show
 // odd light levels, so the patching problems get reported first.
 TT.linkState = function (l) {
-  if (!l.local || !l.remote) return 'pending'
+  if (!l.local) return 'pending'
   const lo = (l.local.alarm || TT.ALARM)[0]
   const peer = l.local.lldp || ''
 
   if (peer && peer.split(':')[0] === l.a.host) return 'loop'
-  if (peer && peer !== `${l.b.host}:${l.b.port}`) return 'mismatch'
-  if (l.local.tx.some(v => v < lo) || l.remote.rx.some(v => v < lo - 10)) return 'notx'
   if (l.local.rx.some(v => v < lo)) return 'norx'
+  if (l.local.tx.some(v => v < lo)) return 'notx'
+  if (l.local.oper !== 'up' || l.local.inErr || l.local.outErr) return 'failed'
 
-  const down = l.local.oper !== 'up' || l.remote.oper !== 'up'
-  const errs = l.local.inErr || l.local.outErr || l.remote.inErr || l.remote.outErr
+  if (!l.remote) return 'pending' // Needs remote to verify circuit up or mismatch
+
+  if (peer && peer !== `${l.b.host}:${l.b.port}`) return 'mismatch'
+  if (l.remote.rx.some(v => v < lo - 10)) return 'notx'
+
+  const down = l.remote.oper !== 'up'
+  const errs = l.remote.inErr || l.remote.outErr
   if (down || errs) return 'failed'
   return 'up'
 }
