@@ -231,6 +231,7 @@
   function renderDetail() {
     const box = $('detail')
     const t = byId(ui.current)
+    console.log('[TT] renderDetail ticket:', t)
     if (!t) {
       box.innerHTML = '<div class="placeholder">Select a ticket to see its path, optics and interface stats.</div>'
       return
