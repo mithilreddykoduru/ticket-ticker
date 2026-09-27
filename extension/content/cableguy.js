@@ -233,10 +233,10 @@
 
     // Check if the Channel Details (FIMspect / patches) modal is open
     let patchText = ''
-    const chanIdx = body.indexOf('Channel Details')
-    if (chanIdx !== -1) {
+    const chanMatch = body.match(/Channel Details/i)
+    if (chanMatch) {
       // Grab a chunk of text that likely contains all the CAS and port info
-      patchText = body.slice(chanIdx, chanIdx + 1500)
+      patchText = body.slice(chanMatch.index, chanMatch.index + 1500)
     }
 
     const ticket = {
