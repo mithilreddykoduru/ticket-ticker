@@ -6,9 +6,10 @@
 
   "permissions": ["storage", "tabs"],
   "host_permissions": [
-    "https://www.metaenterprise.com/ticketing/*",
+    "*://*.metaenterprise.com/*",
     "http://localhost/*",
-    "https://mithilreddykoduru.github.io/*"
+    "https://mithilreddykoduru.github.io/*",
+    "https://ticket-ticker.vercel.app/*"
   ],
 
   "background": {
@@ -17,14 +18,15 @@
 
   "content_scripts": [
     {
-      "matches": ["https://www.metaenterprise.com/ticketing/execute/*"],
+      "matches": ["*://*.metaenterprise.com/*"],
       "js": ["content/cableguy.js"],
       "run_at": "document_idle"
     },
     {
       "matches": [
         "http://localhost/*",
-        "https://mithilreddykoduru.github.io/ticket-ticker/*"
+        "https://mithilreddykoduru.github.io/ticket-ticker/*",
+        "https://ticket-ticker.vercel.app/*"
       ],
       "js": ["content/bridge.js"],
       "run_at": "document_idle"
@@ -32,8 +34,7 @@
   ],
 
   "action": {
-    "default_popup": "popup/popup.html",
-    "default_title": "Ticket Ticker Bridge",
+    "default_title": "Ticket Ticker",
     "default_icon": {
       "16": "icons/icon-16.png",
       "48": "icons/icon-48.png",
