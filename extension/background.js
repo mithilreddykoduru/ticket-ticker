@@ -1,16 +1,15 @@
 // Background service worker — receives scraped tickets from the Cableguy content script,
 // stores them in chrome.storage.local, and opens the board when the icon is clicked.
 
-// Open (or focus) the board tab when the extension icon is clicked
+// Open (or focus) the Ticket Ticker web app when the extension icon is clicked
 chrome.action.onClicked.addListener(() => {
-  const boardUrl = chrome.runtime.getURL('index.html')
-  chrome.tabs.query({ url: boardUrl }, tabs => {
+  const appUrl = 'http://localhost:8080'
+  chrome.tabs.query({ url: appUrl + '/*' }, tabs => {
     if (tabs.length > 0) {
-      // Board is already open — focus it
       chrome.tabs.update(tabs[0].id, { active: true })
       chrome.windows.update(tabs[0].windowId, { focused: true })
     } else {
-      chrome.tabs.create({ url: boardUrl })
+      chrome.tabs.create({ url: appUrl })
     }
   })
 })

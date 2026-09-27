@@ -6,7 +6,9 @@
 
   "permissions": ["storage", "tabs"],
   "host_permissions": [
-    "https://www.metaenterprise.com/ticketing/*"
+    "https://www.metaenterprise.com/ticketing/*",
+    "http://localhost/*",
+    "https://mithilreddykoduru.github.io/*"
   ],
 
   "background": {
@@ -17,6 +19,14 @@
     {
       "matches": ["https://www.metaenterprise.com/ticketing/execute/*"],
       "js": ["extension/content/cableguy.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://mithilreddykoduru.github.io/ticket-ticker/*"
+      ],
+      "js": ["extension/content/bridge.js"],
       "run_at": "document_idle"
     }
   ],
