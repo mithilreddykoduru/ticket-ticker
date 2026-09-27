@@ -31,11 +31,17 @@
   // Extract 4 lane values from "rx:-7.24  rx:-6.62  rx:-6.56  rx:-6.55" format
   // label is 'rx' or 'tx'
   function extractLanes (body, label) {
-    // Support unicode minus '−' and optional spaces before the number
-    const re = new RegExp(label + '\\s*:\\s*([-−]?\\s*\\d+\\.?\\d*)', 'gi')
+    // Match anything after the colon until the number ends, to handle any weird unicode dashes/spaces
+    const re = new RegExp(label + '\\s*:\\s*([^\\d\\s]*\\s*\\d+\\.?\\d*)', 'gi')
     const vals = []
     for (const m of body.matchAll(re)) {
-      vals.push(Number(m[1].replace('−', '-').replace(/\s+/g, '')))
+      let str = m[1].replace(/\s+/g, '')
+      let isNeg = /[^0-9.]/.test(str)
+      let numM = str.match(/\d+\.?\d*/)
+      if (numM) {
+        let val = Number(numM[0])
+        vals.push(isNeg ? -val : val)
+      }
     }
     return vals.length > 0 ? vals.slice(0, 4) : null
   }
@@ -43,10 +49,19 @@
   // Extract alarm window from "[alrm_lo, warn_lo, warn_hi, alrm_hi] = [v1, v2, v3, v4]"
   // The app uses [lo, hi] = [alrm_lo, alrm_hi]
   function extractAlarm (body) {
-    const m4 = body.match(/\[alrm_lo[^\]]*\]\s*=\s*\[\s*([-−]?[\d.]+)\s*,\s*([-−]?[\d.]+)\s*,\s*([-−]?[\d.]+)\s*,\s*([-−]?[\d.]+)\s*\]/)
-    if (m4) return [Number(m4[1].replace('−', '-')), Number(m4[4].replace('−', '-'))]
-    const m2 = body.match(/\[\s*([-−]?[\d.]+)\s*,\s*([-−]?[\d.]+)\s*\]/)
-    if (m2) return [Number(m2[1].replace('−', '-')), Number(m2[2].replace('−', '-'))]
+    const parse = str => {
+      let isNeg = /[^0-9.]/.test(str)
+      let numM = str.match(/\d+\.?\d*/)
+      if (numM) {
+        let val = Number(numM[0])
+        return isNeg ? -val : val
+      }
+      return 0
+    }
+    const m4 = body.match(/\[alrm_lo[^\]]*\]\s*=\s*\[\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^,]+)\s*,\s*([^\]]+)\s*\]/)
+    if (m4) return [parse(m4[1]), parse(m4[4])]
+    const m2 = body.match(/\[\s*([^,]+)\s*,\s*([^\]]+)\s*\]/)
+    if (m2) return [parse(m2[1]), parse(m2[2])]
     return [-7.2, 4.5]
   }
 
