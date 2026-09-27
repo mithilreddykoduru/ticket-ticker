@@ -140,12 +140,17 @@
 
   // Get all unique ticket IDs on the page
   function getTicketIds (body) {
-    const titleMatch = document.title.match(/tkt\d{5,9}/i)
-    if (titleMatch) return [titleMatch[0].toLowerCase()] // We are on a detail page
-
     const matches = [...body.matchAll(/tkt\d{5,9}/gi)]
-    if (!matches.length) return []
-    return Array.from(new Set(matches.map(m => m[0].toLowerCase())))
+    const bodyIds = Array.from(new Set(matches.map(m => m[0].toLowerCase())))
+    
+    // If we clearly see multiple tickets on the page, we are on a list view! Ignore the SPA title.
+    if (bodyIds.length > 1) return bodyIds
+    
+    // Otherwise, try the title in case the ticket isn't rendered in the body yet
+    const titleMatch = document.title.match(/tkt\d{5,9}/i)
+    if (titleMatch) return [titleMatch[0].toLowerCase()]
+
+    return bodyIds
   }
 
   // Extract location fields from a block of text
@@ -312,7 +317,7 @@
     try {
       chrome.runtime.sendMessage(msg, resp => {
         if (chrome.runtime.lastError) {
-          // Extension was reloaded — disconnect so the old observer stops firing
+          console.error(TAG, 'Extension disconnected:', chrome.runtime.lastError.message)
           obs.disconnect()
           return
         }
@@ -322,7 +327,7 @@
         }
       })
     } catch (e) {
-      // Extension context invalidated after a reload — stop the observer
+      console.error(TAG, 'Extension context invalidated:', e.message)
       obs.disconnect()
     }
   }
