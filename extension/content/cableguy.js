@@ -151,7 +151,7 @@
   // Extract location fields from a block of text
   function extractLoc(text) {
     let site = '', room = '', row = 0, rack = 0, elev = 0, post = ''
-    const locM = text.match(/\\b(MCA\\d)\\s*[,·]\\s*([12][A-Da-d]|NS\\d)\\s*[,·]\\s*(\\d+)\\s*[,·]\\s*(\\d+)\\s*[,·]\\s*([\\d.]+)/i)
+    const locM = text.match(/\\b(MCA\\d)\\s*[,·-]\\s*([12][A-Da-d]|NS\\d)\\s*[,·-]\\s*(\\d+)\\s*[,·-]\\s*(\\d+)\\s*[,·-]\\s*([\\d.]+)/i)
     if (locM) {
       [, site, room, row, rack, elev] = locM
       row = Number(row); rack = Number(rack); elev = parseFloat(elev)
