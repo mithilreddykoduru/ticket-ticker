@@ -138,6 +138,39 @@
     }
   }
 
+  // Get all unique ticket IDs on the page
+  function getTicketIds (body) {
+    const titleMatch = document.title.match(/tkt\d{5,9}/i)
+    if (titleMatch) return [titleMatch[0].toLowerCase()] // We are on a detail page
+
+    const matches = [...body.matchAll(/tkt\d{5,9}/gi)]
+    if (!matches.length) return []
+    return Array.from(new Set(matches.map(m => m[0].toLowerCase())))
+  }
+
+  // Extract location fields from a block of text
+  function extractLoc(text) {
+    let site = '', room = '', row = 0, rack = 0, elev = 0, post = ''
+    const locM = text.match(/\\b(MCA\\d)\\s*[,·]\\s*([12][A-Da-d]|NS\\d)\\s*[,·]\\s*(\\d+)\\s*[,·]\\s*(\\d+)\\s*[,·]\\s*([\\d.]+)/i)
+    if (locM) {
+      [, site, room, row, rack, elev] = locM
+      row = Number(row); rack = Number(rack); elev = parseFloat(elev)
+    } else {
+      const siteM = text.match(/·\\s*(MCA\\d+)/i) || text.match(/\\b(MCA\\d+)\\b/i)
+      if (siteM) site = siteM[1].toUpperCase()
+    }
+    const postM = text.match(/\\bpost\\s*[:\=]\\s*([OC])\\b/i) || text.match(/\\b([OC])\\s*(?:post|side)\\b/i)
+    if (postM) post = postM[1].toUpperCase()
+    
+    return { site, room, row, rack, elev, post }
+  }
+
+  // Extract work status
+  function extractWork(text) {
+    const workM = text.match(/\\b(Circuit\\s+Audit|Cable\\s*-\\s*\\w+|Optic\\s*-\\s*\\w+|Needs\\s+Cleaning|Awaiting\\s+Parts|Open|check[-\\s]?in|check[-\\s]?out)\\b/i)
+    return workM ? workM[1].replace(/\\s+/g, ' ').trim() : 'Open'
+  }
+
   // ---- main scrape ----
   function scrape () {
     const body = txt()
@@ -145,30 +178,43 @@
 
     console.log(TAG, 'Scraping', location.href, '— body length:', body.length)
 
-    const id = getTicketId(body)
-    if (!id) { console.log(TAG, 'No ticket id'); return null }
+    const ids = getTicketIds(body)
+    if (!ids.length) { console.log(TAG, 'No ticket ids'); return null }
+
+    if (ids.length > 1 && !document.title.toLowerCase().includes(ids[0])) {
+      // Home page list view - extract all basic tickets
+      console.log(TAG, 'List page detected, found', ids.length, 'tickets')
+      const list = []
+      for (const id of ids) {
+        // Find text near this ticket ID to extract its basic location
+        const start = Math.max(0, body.toLowerCase().indexOf(id) - 100)
+        const context = body.slice(start, start + 300)
+        const loc = extractLoc(context)
+        const work = extractWork(context)
+        
+        // Hall mapping
+        const roomHallMap = { '1A': 'DH A', '1B': 'DH B', '1C': 'DH C', '1D': 'DH D',
+          'NS1': 'NS 1', 'NS2': 'NS 2', 'NS3': 'NS 3', 'NS4': 'NS 4' }
+        const hall = roomHallMap[loc.room.toUpperCase()] || ''
+
+        list.push({
+          id, hall, work,
+          site: loc.site, room: loc.room, row: loc.row, rack: loc.rack, elev: loc.elev, post: loc.post,
+          _scraped: Date.now()
+        })
+      }
+      return list
+    }
+
+    const id = ids[0]
     console.log(TAG, 'Ticket id:', id)
 
     // Location
-    let site = '', room = '', row = 0, rack = 0, elev = 0, post = ''
-    const locM = body.match(/\b(MCA\d)\s*[,·]\s*([12][A-Da-d]|NS\d)\s*[,·]\s*(\d+)\s*[,·]\s*(\d+)\s*[,·]\s*([\d.]+)/i)
-    if (locM) {
-      [, site, room, row, rack, elev] = locM
-      row = Number(row); rack = Number(rack); elev = parseFloat(elev)
-    } else {
-      // Partial: grab site from "· MCA1" or "tktXXX · MCA1"
-      const siteM = body.match(/·\s*(MCA\d+)/i) || body.match(/\b(MCA\d+)\b/i)
-      if (siteM) site = siteM[1].toUpperCase()
-    }
-    console.log(TAG, 'Location:', { site, room, row: Number(row), rack: Number(rack), elev: parseFloat(elev) })
+    const loc = extractLoc(body)
+    const work = extractWork(body)
+    const { site, room, row, rack, elev, post } = loc
 
-    // Post
-    const postM = body.match(/\bpost\s*[:\=]\s*([OC])\b/i) || body.match(/\b([OC])\s*(?:post|side)\b/i)
-    if (postM) post = postM[1].toUpperCase()
 
-    // Work status — try the ticket title / status text
-    const workM = body.match(/\b(Circuit\s+Audit|Cable\s*-\s*\w+|Optic\s*-\s*\w+|Needs\s+Cleaning|Awaiting\s+Parts|Open|check[-\s]?in|check[-\s]?out)\b/i)
-    const work = workM ? workM[1].replace(/\s+/g, ' ').trim() : 'Open'
 
     // Hall: derive from room mapping or fsw/xsw/ssw hostname
     const roomHallMap = { '1A': 'DH A', '1B': 'DH B', '1C': 'DH C', '1D': 'DH D',
@@ -259,10 +305,12 @@
   }
 
   // ---- send to background ----
-  function sendTicket (ticket) {
-    if (!ticket) return
+  function sendTicket (payload) {
+    if (!payload) return
+    const msg = Array.isArray(payload) ? { type: 'TT_TICKETS', tickets: payload } : { type: 'TT_TICKET', ticket: payload }
+    
     try {
-      chrome.runtime.sendMessage({ type: 'TT_TICKET', ticket }, resp => {
+      chrome.runtime.sendMessage(msg, resp => {
         if (chrome.runtime.lastError) {
           // Extension was reloaded — disconnect so the old observer stops firing
           obs.disconnect()
@@ -270,7 +318,7 @@
         }
         if (resp && resp.ok) {
           console.log(TAG, 'Sent OK, total captured:', resp.count)
-          showBanner(`Ticket Ticker: captured ${ticket.id} (${resp.count} total)`)
+          showBanner(`Ticket Ticker: captured ${Array.isArray(payload) ? payload.length + ' tickets' : payload.id} (${resp.count} total)`)
         }
       })
     } catch (e) {

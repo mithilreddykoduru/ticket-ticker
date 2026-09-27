@@ -39,6 +39,31 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true
   }
 
+  if (msg.type === 'TT_TICKETS') {
+    chrome.storage.local.get(['tt_tickets'], result => {
+      const tickets = result.tt_tickets || []
+      for (const t of msg.tickets) {
+        const idx = tickets.findIndex(x => x.id === t.id)
+        if (idx !== -1) {
+          // Shallow merge from list page - preserve existing deep data!
+          t.links = tickets[idx].links || []
+          t.patchText = tickets[idx].patchText || ''
+          tickets[idx] = t
+        } else {
+          t.links = []
+          t.patchText = ''
+          tickets.push(t)
+        }
+      }
+      chrome.storage.local.set({ tt_tickets: tickets }, () => {
+        sendResponse({ ok: true, count: tickets.length })
+        chrome.action.setBadgeText({ text: String(tickets.length) })
+        chrome.action.setBadgeBackgroundColor({ color: '#4f8ef7' })
+      })
+    })
+    return true
+  }
+
   if (msg.type === 'TT_CLEAR') {
     chrome.storage.local.set({ tt_tickets: [] }, () => {
       chrome.action.setBadgeText({ text: '' })
