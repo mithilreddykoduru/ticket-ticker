@@ -31,19 +31,22 @@
   // Extract 4 lane values from "rx:-7.24  rx:-6.62  rx:-6.56  rx:-6.55" format
   // label is 'rx' or 'tx'
   function extractLanes (body, label) {
-    const re = new RegExp(label + '\\s*:\\s*(-?\\d+\\.?\\d*)', 'gi')
+    // Support unicode minus '−' and optional spaces before the number
+    const re = new RegExp(label + '\\s*:\\s*([-−]?\\s*\\d+\\.?\\d*)', 'gi')
     const vals = []
-    for (const m of body.matchAll(re)) vals.push(Number(m[1]))
-    return vals.length >= 4 ? vals.slice(0, 4) : null
+    for (const m of body.matchAll(re)) {
+      vals.push(Number(m[1].replace('−', '-').replace(/\s+/g, '')))
+    }
+    return vals.length > 0 ? vals.slice(0, 4) : null
   }
 
   // Extract alarm window from "[alrm_lo, warn_lo, warn_hi, alrm_hi] = [v1, v2, v3, v4]"
   // The app uses [lo, hi] = [alrm_lo, alrm_hi]
   function extractAlarm (body) {
-    const m4 = body.match(/\[alrm_lo[^\]]*\]\s*=\s*\[\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\]/)
-    if (m4) return [Number(m4[1]), Number(m4[4])]
-    const m2 = body.match(/\[\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\]/)
-    if (m2) return [Number(m2[1]), Number(m2[2])]
+    const m4 = body.match(/\[alrm_lo[^\]]*\]\s*=\s*\[\s*([-−]?[\d.]+)\s*,\s*([-−]?[\d.]+)\s*,\s*([-−]?[\d.]+)\s*,\s*([-−]?[\d.]+)\s*\]/)
+    if (m4) return [Number(m4[1].replace('−', '-')), Number(m4[4].replace('−', '-'))]
+    const m2 = body.match(/\[\s*([-−]?[\d.]+)\s*,\s*([-−]?[\d.]+)\s*\]/)
+    if (m2) return [Number(m2[1].replace('−', '-')), Number(m2[2].replace('−', '-'))]
     return [-7.2, 4.5]
   }
 
@@ -106,7 +109,7 @@
     const outErr = Number(field(section, 'out_errors') || field(section, 'outErr') || 0)
     const lldp   = extractLldp(section, aHost + ':' + aPort)
 
-    if (!rx && !tx) return null
+    if (!rx && !tx && !vendor && !lldp && !field(section, 'oper_status')) return null
     return {
       rx:     rx    || [0, 0, 0, 0],
       tx:     tx    || [0, 0, 0, 0],
@@ -213,6 +216,14 @@
 
     console.log(TAG, 'Links built:', links.length)
 
+    // Check if the Channel Details (FIMspect / patches) modal is open
+    let patchText = ''
+    const chanIdx = body.indexOf('Channel Details')
+    if (chanIdx !== -1) {
+      // Grab a chunk of text that likely contains all the CAS and port info
+      patchText = body.slice(chanIdx, chanIdx + 1500)
+    }
+
     const ticket = {
       id,
       hall,
@@ -225,6 +236,7 @@
       post,
       linked: [],
       links,
+      patchText,
       _scraped: Date.now()
     }
     console.log(TAG, 'Ticket to send:', ticket)

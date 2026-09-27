@@ -276,6 +276,11 @@
 
         ${t.links.length ? `<div><div class="label" style="margin-bottom:6px">Fiber path</div><div class="path">${pathHtml(t)}</div></div>` : ''}
 
+        ${t.patchText ? `<div>
+          <div class="label" style="margin-bottom:6px">Channel Details (Patches)</div>
+          <pre style="font-size:11px; color:var(--text-dim); background:var(--bg-card); padding:8px; border-radius:4px; max-height:150px; overflow-y:auto; white-space:pre-wrap; border:1px solid var(--border)">${esc(t.patchText.replace(/Channel Details\n?/, '').trim())}</pre>
+        </div>` : ''}
+
         ${t.linked.length ? `<div>
           <div class="label" style="margin-bottom:6px">Linked ${otherSide} tickets</div>
           <div class="linked">${t.linked.map(id => {

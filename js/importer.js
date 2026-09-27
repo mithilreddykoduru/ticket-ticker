@@ -143,6 +143,7 @@ TT.normalize = function (raw) {
       elev: num(elev),
       post: String(t.post || '').toUpperCase(),
       linked: Array.isArray(t.linked) ? t.linked.map(String) : [],
+      patchText: t.patchText || '',
       links: (t.links || []).map(l => ({
         a: endpoint(l.a), b: endpoint(l.b),
         local: cleanSide(l.local), remote: cleanSide(l.remote)
