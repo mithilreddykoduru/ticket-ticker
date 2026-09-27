@@ -278,8 +278,13 @@
 
         ${t.patchText ? `<div>
           <div class="label" style="margin-bottom:6px">Channel Details (Patches)</div>
-          <pre style="font-size:11px; color:var(--text-dim); background:var(--bg-card); padding:8px; border-radius:4px; max-height:150px; overflow-y:auto; white-space:pre-wrap; border:1px solid var(--border)">${esc(t.patchText.replace(/Channel Details\n?/, '').trim())}</pre>
-        </div>` : ''}
+          <pre style="font-size:11px; color:var(--text-dim); background:var(--bg-card); padding:8px; border-radius:4px; max-height:150px; overflow-y:auto; white-space:pre-wrap; border:1px solid var(--border)">${esc(t.patchText.replace(/Channel Details\\n?/, '').trim())}</pre>
+        </div>` : `<div>
+          <div class="label" style="margin-bottom:6px">Channel Details (Patches)</div>
+          <div class="chip" style="font-size:11px; background:var(--bg-card); border:1px solid var(--border); padding:8px; display:flex; gap:6px; align-items:center; color:var(--text-dim)">
+            <span style="font-size:14px">⚠️</span> Open <b>FIMspect / Channel Details</b> on the Cableguy page to read the patch path.
+          </div>
+        </div>`}
 
         ${t.linked.length ? `<div>
           <div class="label" style="margin-bottom:6px">Linked ${otherSide} tickets</div>
