@@ -4,8 +4,8 @@
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
   // ---- data ----
-  let tickets = TT.buildSample()
-  let source = 'sample'
+  let tickets = []
+  let source = 'empty'
   const saved = store.get('tickets')
   if (Array.isArray(saved) && saved.length) {
     try { tickets = TT.normalize(saved); source = 'imported' } catch (e) { store.set('tickets', null) }
@@ -130,10 +130,20 @@
   }
 
   function renderList() {
+    if (!tickets.length) {
+      $('list').innerHTML = `<div class="empty">
+        <strong>No tickets yet.</strong><br><br>
+        Browse a Cableguy ticket in another tab<br>
+        and the extension will capture it automatically,<br>
+        or use <strong>Import</strong> to paste JSON&nbsp;/&nbsp;CSV.
+      </div>`
+      return
+    }
     if (!ui.halls.size) {
       $('list').innerHTML = '<div class="empty">Pick one or more halls above to load their tickets.</div>'
       return
     }
+
     const list = visible()
     const doneCount = inHalls().filter(t => done[t.id]).length
     const head = `<div class="list-head">
@@ -661,7 +671,22 @@
   window.addEventListener('offline', updateNetStatus)
   updateNetStatus()
 
-  if (window.matchMedia('(min-width: 861px)').matches && source === 'sample') ui.current = 'tkt26826746'
   render()
+
+  // Chrome Extension bridge: re-ingest tickets whenever the extension scrapes a new one
+  window.addEventListener('tt-ext-sync', e => {
+    try {
+      const next = TT.normalize(e.detail.tickets)
+      if (!next.length) return
+      tickets = next
+      source = 'imported'
+      // Keep current selection if the ticket still exists
+      if (ui.current && !tickets.find(t => t.id === ui.current)) ui.current = null
+      // Expand halls to cover all imported halls
+      ui.halls = new Set(tickets.map(t => t.hall))
+      store.set('halls', [...ui.halls])
+      render()
+    } catch (e) {}
+  })
 })()
 

@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Ticket Ticker Bridge",
+  "version": "1.0.0",
+  "description": "Reads tickets from Cableguy (metaenterprise.com) and feeds them into Ticket Ticker automatically.",
+
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://www.metaenterprise.com/ticketing/*",
+    "http://localhost/*",
+    "https://mithilreddykoduru.github.io/*"
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.metaenterprise.com/ticketing/execute/*"],
+      "js": ["content/cableguy.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost/*",
+        "https://mithilreddykoduru.github.io/ticket-ticker/*"
+      ],
+      "js": ["content/bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Ticket Ticker Bridge",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

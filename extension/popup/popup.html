@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Ticker Bridge</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <span class="dot" id="dot"></span>
+    <h1>Ticket Ticker Bridge</h1>
+  </header>
+
+  <div class="count-row">
+    <span id="count">0</span>
+    <span class="label">tickets captured</span>
+  </div>
+
+  <ul id="ticketList" class="ticket-list"></ul>
+
+  <div class="actions">
+    <button id="openApp" class="btn primary">Open Ticket Ticker</button>
+    <button id="clearBtn" class="btn danger">Clear All Tickets</button>
+  </div>
+
+  <p class="hint">
+    Browse any Cableguy ticket at<br>
+    <code>metaenterprise.com/ticketing/execute/…</code><br>
+    and it will appear here automatically.
+  </p>
+
+  <script src="popup.js"></script>
+</body>
+</html>
