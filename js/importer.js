@@ -31,9 +31,90 @@ function endpoint(e) {
   return { host: e?.host || '', port: e?.port || '' }
 }
 
+TT.fromCsv = function (text) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean)
+  if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row.')
+
+  const parseLine = line => {
+    const res = []
+    let cur = '', inQuotes = false
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i]
+      if (c === '"') {
+        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++ }
+        else { inQuotes = !inQuotes }
+      } else if (c === ',' && !inQuotes) {
+        res.push(cur.trim())
+        cur = ''
+      } else {
+        cur += c
+      }
+    }
+    res.push(cur.trim())
+    return res
+  }
+
+  const headers = parseLine(lines[0]).map(h => h.toLowerCase())
+  const ticketIdx = headers.indexOf('ticket') !== -1 ? headers.indexOf('ticket') : headers.indexOf('id')
+  if (ticketIdx === -1) throw new Error('CSV is missing a "ticket" or "id" header column.')
+
+  const getCol = (cols, name) => {
+    const idx = headers.indexOf(name)
+    return idx !== -1 ? cols[idx] : ''
+  }
+
+  const map = new Map()
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseLine(lines[i])
+    const id = cols[ticketIdx]
+    if (!id) continue
+
+    let t = map.get(id)
+    if (!t) {
+      const hall = getCol(cols, 'hall')
+      const work = getCol(cols, 'work') || 'Open'
+      const site = getCol(cols, 'site')
+      const room = getCol(cols, 'room')
+      const row = getCol(cols, 'row')
+      const rack = getCol(cols, 'rack')
+      const elev = getCol(cols, 'elev')
+      const post = getCol(cols, 'post')
+      const linkedStr = getCol(cols, 'linked')
+      const linked = linkedStr ? linkedStr.split(/\s+/).filter(Boolean) : []
+
+      t = { id, hall, work, site, room, row, rack, elev, post, linked, links: [] }
+      map.set(id, t)
+    }
+
+    const aHost = getCol(cols, 'a_host') || getCol(cols, 'host_a')
+    const aPort = getCol(cols, 'a_port') || getCol(cols, 'port_a')
+    const bHost = getCol(cols, 'b_host') || getCol(cols, 'host_b')
+    const bPort = getCol(cols, 'b_port') || getCol(cols, 'port_b')
+
+    if (aHost || bHost) {
+      t.links.push({
+        a: { host: aHost, port: aPort },
+        b: { host: bHost, port: bPort },
+        local: null,
+        remote: null
+      })
+    }
+  }
+
+  return [...map.values()]
+}
+
 TT.normalize = function (raw) {
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      raw = JSON.parse(trimmed)
+    } else {
+      raw = TT.fromCsv(trimmed)
+    }
+  }
   const arr = Array.isArray(raw) ? raw : Array.isArray(raw?.tickets) ? raw.tickets : null
-  if (!arr) throw new Error('Expected a list of tickets, or an object with a "tickets" list.')
+  if (!arr) throw new Error('Expected a list of tickets, an object with a "tickets" list, or a CSV export.')
 
   const tickets = arr.map((t, i) => {
     if (!t || !t.id) throw new Error(`Ticket ${i + 1} has no "id".`)

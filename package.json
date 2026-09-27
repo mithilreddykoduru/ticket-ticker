@@ -1,0 +1,20 @@
+{
+  "name": "ticket-ticker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hall ticket board for Network Suite and Data Hall fiber work",
+  "homepage": "https://github.com/mithilreddykoduru/ticket-ticker",
+  "scripts": {
+    "dev": "npx -y serve .",
+    "start": "npx -y serve ."
+  },
+  "keywords": [
+    "datacenter",
+    "fiber",
+    "optics",
+    "cableguy",
+    "tickets"
+  ],
+  "author": "mithilreddykoduru",
+  "license": "MIT"
+}

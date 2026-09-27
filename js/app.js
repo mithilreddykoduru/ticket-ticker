@@ -11,22 +11,40 @@
     try { tickets = TT.normalize(saved); source = 'imported' } catch (e) { store.set('tickets', null) }
   }
   const notes = store.get('notes', {})
+  const done = store.get('done', {})
+
+  const allHalls = HALLS.map(h => h.id)
+  const savedHalls = store.get('halls')
+  const initialHalls = (Array.isArray(savedHalls) && savedHalls.length)
+    ? (savedHalls.length === 2 && savedHalls.includes('DH B') && savedHalls.includes('NS 1') ? allHalls : savedHalls)
+    : allHalls
 
   const ui = {
-    halls: new Set(store.get('halls', ['DH B', 'NS 1'])),
+    halls: new Set(initialHalls),
     states: new Set(),
     tiers: new Set(),
     posts: new Set(),
     row: '',
     fcan: false,
     q: '',
+    hideDone: store.get('hideDone', false),
+    groupBy: store.get('groupBy', 'none'),
     current: null
   }
 
   const byId = id => tickets.find(t => t.id === id)
   const inHalls = () => tickets.filter(t => ui.halls.has(t.hall))
 
+  function toggleDone(id) {
+    if (done[id]) delete done[id]
+    else done[id] = new Date().toISOString()
+    store.set('done', done)
+    renderList()
+    renderDetail()
+  }
+
   function matches(t) {
+    if (ui.hideDone && done[t.id]) return false
     if (ui.states.size && !t.links.some(l => ui.states.has(TT.linkState(l)))) return false
     if (ui.tiers.size && !t.links.some(l => ui.tiers.has(TT.tierOf(l.a.host)) || ui.tiers.has(TT.tierOf(l.b.host)))) return false
     if (ui.row && String(t.row) !== ui.row) return false
@@ -79,39 +97,79 @@
 
     for (const b of $('sideSeg').children) b.setAttribute('aria-pressed', ui.posts.has(b.dataset.v))
     $('fcan').setAttribute('aria-pressed', ui.fcan)
+    $('hideDone').setAttribute('aria-pressed', ui.hideDone)
+    $('groupBySel').value = ui.groupBy
   }
 
   // ---- ticket list ----
+  function renderTicketCard(t) {
+    const st = TT.stateInfo(TT.ticketState(t))
+    const tiers = [...new Set(t.links.flatMap(l => [TT.tierOf(l.a.host), TT.tierOf(l.b.host)]))].join(' › ')
+    const isDone = !!done[t.id]
+    return `<button class="tk ${st.cls || 'idle'} ${isDone ? 'is-done' : ''}" data-id="${esc(t.id)}" aria-current="${ui.current === t.id}">
+      <span class="stripe"></span>
+      <span>
+        <div class="t1">
+          <span class="tk-done-btn" data-done-id="${esc(t.id)}" title="${isDone ? 'Mark incomplete' : 'Mark done'}" role="button" tabindex="0">
+            ${isDone ? '✓' : ''}
+          </span>
+          <span>${esc(t.work)}</span>
+        </div>
+        <div class="t2">${esc(t.id)} · ${esc(TT.locText(t))}</div>
+        <div class="t3">
+          <span class="tag ${st.cls}">${st.name}</span>
+          ${tiers ? `<span class="tag">${tiers}</span>` : ''}
+          ${TT.isFcan(t) ? '<span class="tag acc">FCAN</span>' : ''}
+          ${t.linked.length ? `<span class="tag acc">↔ ${t.linked.length} linked</span>` : ''}
+          ${notes[t.id] ? '<span class="tag">note</span>' : ''}
+          ${isDone ? '<span class="tag done">Done</span>' : ''}
+        </div>
+      </span>
+      <span class="hl">${esc(t.hall)}<br>${t.post ? esc(t.post) + ' post' : ''}</span>
+    </button>`
+  }
+
   function renderList() {
     if (!ui.halls.size) {
       $('list').innerHTML = '<div class="empty">Pick one or more halls above to load their tickets.</div>'
       return
     }
     const list = visible()
-    const head = `<div class="list-head"><span class="label">Tickets</span><span>${list.length} of ${inHalls().length}</span></div>`
+    const doneCount = inHalls().filter(t => done[t.id]).length
+    const head = `<div class="list-head">
+      <span class="label">Tickets</span>
+      <span>${list.length} of ${inHalls().length}${doneCount ? ` (${doneCount} done)` : ''}</span>
+    </div>`
     if (!list.length) {
       $('list').innerHTML = head + '<div class="empty">No tickets match these filters.</div>'
       return
     }
-    $('list').innerHTML = head + list.map(t => {
-      const st = TT.stateInfo(TT.ticketState(t))
-      const tiers = [...new Set(t.links.flatMap(l => [TT.tierOf(l.a.host), TT.tierOf(l.b.host)]))].join(' › ')
-      return `<button class="tk ${st.cls || 'idle'}" data-id="${esc(t.id)}" aria-current="${ui.current === t.id}">
-        <span class="stripe"></span>
-        <span>
-          <div class="t1">${esc(t.work)}</div>
-          <div class="t2">${esc(t.id)} · ${esc(TT.locText(t))}</div>
-          <div class="t3">
-            <span class="tag ${st.cls}">${st.name}</span>
-            ${tiers ? `<span class="tag">${tiers}</span>` : ''}
-            ${TT.isFcan(t) ? '<span class="tag acc">FCAN</span>' : ''}
-            ${t.linked.length ? `<span class="tag acc">↔ ${t.linked.length} linked</span>` : ''}
-            ${notes[t.id] ? '<span class="tag">note</span>' : ''}
-          </div>
-        </span>
-        <span class="hl">${esc(t.hall)}<br>${t.post ? esc(t.post) + ' post' : ''}</span>
-      </button>`
-    }).join('')
+
+    if (ui.groupBy === 'none') {
+      $('list').innerHTML = head + list.map(renderTicketCard).join('')
+      return
+    }
+
+    const groups = new Map()
+    for (const t of list) {
+      let key = ''
+      if (ui.groupBy === 'hall') key = t.hall
+      else if (ui.groupBy === 'row') key = `${t.hall} · Row ${t.row}`
+      else if (ui.groupBy === 'state') key = TT.stateInfo(TT.ticketState(t)).name
+
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(t)
+    }
+
+    const groupedHtml = [...groups.entries()].map(([title, groupTickets]) => `
+      <div class="group-head">
+        <span>${esc(title)}</span>
+        <span class="badge">${groupTickets.length}</span>
+      </div>
+      ${groupTickets.map(renderTicketCard).join('')}
+    `).join('')
+
+    $('list').innerHTML = head + groupedHtml
   }
 
   // ---- detail ----
@@ -172,14 +230,18 @@
     t.links.forEach(l => count[TT.linkState(l)]++)
     const mini = s => !count[s.k] ? '' : ({ ok: 'on', warn: 'onw', bad: 'onb' }[s.cls] || '')
     const otherSide = TT.hallOf(t.hall).type === 'NS' ? 'data hall' : 'network suite'
+    const isDone = !!done[t.id]
 
     box.innerHTML = `
       <div class="d-head">
         <button class="back" id="back" aria-label="Back to list">‹</button>
-        <div>
+        <div style="flex:1">
           <h2>${esc(t.work)}</h2>
           <div class="loc">${esc(t.id)} · ${esc(TT.locText(t))}</div>
         </div>
+        <button class="btn btn-done ${isDone ? 'is-done' : ''}" data-detail-done="${esc(t.id)}">
+          ${isDone ? '✓ Completed' : 'Mark Done'}
+        </button>
       </div>
       <div class="d-body">
         <div class="facts">
@@ -188,6 +250,15 @@
           <div class="fact"><div class="k">Rack</div><div class="v">${t.rack}</div></div>
           <div class="fact"><div class="k">Elev</div><div class="v">${Number(t.elev).toFixed(2)}${TT.isFcan(t) ? ' FCAN' : ''}</div></div>
           <div class="fact"><div class="k">Post</div><div class="v">${esc(t.post) || '–'}</div></div>
+        </div>
+        <div class="rack-viz" title="Rack Unit: U${Math.round(t.elev)} of 47">
+          <span class="label" style="font-size:10px">U1</span>
+          <div class="rack-track">
+            <div class="rack-fcan-zone" title="FCAN zone U46-47"></div>
+            <div class="rack-pin" style="left: ${Math.min(100, Math.max(0, (t.elev / 47) * 100))}%" title="Rack unit ${t.elev}"></div>
+          </div>
+          <span class="label" style="font-size:10px">U47 (FCAN)</span>
+          ${t.post ? `<span class="badge" style="font-size:10px; margin-left:auto">${esc(t.post)} Post</span>` : ''}
         </div>
 
         <div class="mini">${STATES.map(s => `<div class="${mini(s)}"><b>${count[s.k]}</b> ${s.name}</div>`).join('')}</div>
@@ -256,6 +327,93 @@
     render()
   }
 
+  // ---- shift summary ----
+  function generateShiftSummary() {
+    const targetHalls = ui.halls.size ? HALLS.filter(h => ui.halls.has(h.id)) : HALLS
+    const rows = []
+    let grandTotal = 0, grandDone = 0
+    const grandStates = Object.fromEntries(STATES.map(s => [s.k, 0]))
+
+    for (const h of targetHalls) {
+      const hallTickets = tickets.filter(t => t.hall === h.id)
+      if (!hallTickets.length) continue
+      const total = hallTickets.length
+      const doneCount = hallTickets.filter(t => done[t.id]).length
+      const counts = Object.fromEntries(STATES.map(s => [s.k, 0]))
+      for (const t of hallTickets) {
+        counts[TT.ticketState(t)]++
+      }
+      grandTotal += total
+      grandDone += doneCount
+      for (const s of STATES) grandStates[s.k] += counts[s.k]
+
+      rows.push({
+        hall: h.id,
+        total,
+        doneCount,
+        counts
+      })
+    }
+
+    const stateHeaders = STATES.map(s => `<th class="num">${s.name}</th>`).join('')
+    const tableRows = rows.map(r => `
+      <tr>
+        <td><b>${esc(r.hall)}</b></td>
+        <td class="num">${r.total}</td>
+        <td class="num">${r.doneCount}</td>
+        ${STATES.map(s => `<td class="num ${r.counts[s.k] ? s.cls : ''}">${r.counts[s.k] || 0}</td>`).join('')}
+      </tr>
+    `).join('')
+
+    const totalRow = `
+      <tr class="total-row">
+        <td>Total (${rows.length} halls)</td>
+        <td class="num">${grandTotal}</td>
+        <td class="num">${grandDone}</td>
+        ${STATES.map(s => `<td class="num">${grandStates[s.k]}</td>`).join('')}
+      </tr>
+    `
+
+    const html = `
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>Hall</th>
+            <th class="num">Tickets</th>
+            <th class="num">Done</th>
+            ${stateHeaders}
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+          ${totalRow}
+        </tbody>
+      </table>
+    `
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    let md = `### Shift Handoff Summary — ${dateStr}\n\n`
+    md += `**Total Tickets**: ${grandTotal} | **Done**: ${grandDone} | **Open**: ${grandTotal - grandDone}\n\n`
+    md += `| Hall | Total | Done | ${STATES.map(s => s.name).join(' | ')} |\n`
+    md += `| :--- | :---: | :---: | ${STATES.map(() => ':---:').join(' | ')} |\n`
+    for (const r of rows) {
+      md += `| **${r.hall}** | ${r.total} | ${r.doneCount} | ${STATES.map(s => r.counts[s.k] || 0).join(' | ')} |\n`
+    }
+    md += `| **Total** | **${grandTotal}** | **${grandDone}** | ${STATES.map(s => `**${grandStates[s.k]}**`).join(' | ')} |\n`
+
+    return { html, md }
+  }
+
+  let toastTimer
+  function showToast(msg) {
+    const t = $('toast')
+    if (!t) return
+    t.textContent = msg
+    t.classList.add('show')
+    clearTimeout(toastTimer)
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2500)
+  }
+
   // ---- events ----
   document.querySelector('.halls').addEventListener('click', e => {
     const b = e.target.closest('[data-hall]')
@@ -287,20 +445,45 @@
   })
   $('fcan').addEventListener('click', () => { ui.fcan = !ui.fcan; render() })
   $('rowSel').addEventListener('change', e => { ui.row = e.target.value; render() })
+  $('groupBySel').addEventListener('change', e => {
+    ui.groupBy = e.target.value
+    store.set('groupBy', ui.groupBy)
+    renderList()
+  })
+  $('hideDone').addEventListener('click', () => {
+    ui.hideDone = !ui.hideDone
+    store.set('hideDone', ui.hideDone)
+    render()
+  })
   $('q').addEventListener('input', e => { ui.q = e.target.value; renderList() })
   $('resetFilters').addEventListener('click', () => {
     ui.states.clear(); ui.tiers.clear(); ui.posts.clear()
     ui.row = ''; ui.fcan = false; ui.q = ''; $('q').value = ''
+    ui.hideDone = false
+    store.set('hideDone', false)
+    ui.groupBy = 'none'
+    store.set('groupBy', 'none')
     render()
   })
 
   $('list').addEventListener('click', e => {
+    const doneBtn = e.target.closest('[data-done-id]')
+    if (doneBtn) {
+      e.stopPropagation()
+      toggleDone(doneBtn.dataset.doneId)
+      return
+    }
     const b = e.target.closest('[data-id]')
     if (b) open(b.dataset.id)
   })
 
   $('detail').addEventListener('click', e => {
     if (e.target.id === 'back') { ui.current = null; render(); return }
+    const doneBtn = e.target.closest('[data-detail-done]')
+    if (doneBtn) {
+      toggleDone(doneBtn.dataset.detailDone)
+      return
+    }
     const j = e.target.closest('[data-jump]')
     if (j) open(j.dataset.jump)
   })
@@ -323,8 +506,45 @@
 
   document.addEventListener('keydown', e => {
     const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)
-    if (e.key === '/' && !typing) { e.preventDefault(); $('q').focus() }
-    if (e.key === 'Escape' && ui.current && !$('dlg').open) { ui.current = null; render() }
+    if (typing) return
+
+    if (e.key === '/') {
+      e.preventDefault()
+      $('q').focus()
+      return
+    }
+
+    if (e.key === 'Escape') {
+      if ($('dlgSummary') && $('dlgSummary').open) { $('dlgSummary').close(); return }
+      if ($('dlg') && $('dlg').open) { $('dlg').close(); return }
+      if (ui.current) { ui.current = null; render(); return }
+    }
+
+    if (e.key === 'x' && ui.current) {
+      e.preventDefault()
+      toggleDone(ui.current)
+      return
+    }
+
+    if (e.key === 'j' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      const list = visible()
+      if (!list.length) return
+      const idx = list.findIndex(t => t.id === ui.current)
+      const next = list[idx + 1] || list[0]
+      open(next.id)
+      return
+    }
+
+    if (e.key === 'k' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      const list = visible()
+      if (!list.length) return
+      const idx = list.findIndex(t => t.id === ui.current)
+      const prev = list[idx - 1] || list[list.length - 1]
+      open(prev.id)
+      return
+    }
   })
 
   // theme: system → dark → light → system
@@ -351,6 +571,26 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000)
   })
 
+  // ---- shift summary dialog ----
+  const dlgSummary = $('dlgSummary')
+  let currentSummaryMd = ''
+  $('btnSummary').addEventListener('click', () => {
+    const sum = generateShiftSummary()
+    currentSummaryMd = sum.md
+    $('summaryContent').innerHTML = sum.html
+    dlgSummary.showModal()
+  })
+  $('summaryCloseX').addEventListener('click', () => dlgSummary.close())
+  $('btnSummaryClose').addEventListener('click', () => dlgSummary.close())
+  $('btnCopySummary').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(currentSummaryMd)
+      showToast('Shift summary copied to clipboard!')
+    } catch (e) {
+      showToast('Copied text to clipboard')
+    }
+  })
+
   // ---- import dialog ----
   const dlg = $('dlg')
   $('btnImport').addEventListener('click', () => { $('dlgErr').textContent = ''; dlg.showModal() })
@@ -363,6 +603,12 @@
     source = 'sample'
     store.set('tickets', null)
     ui.current = null
+    ui.halls = new Set(HALLS.map(h => h.id))
+    store.set('halls', [...ui.halls])
+    ui.states.clear(); ui.tiers.clear(); ui.posts.clear()
+    ui.row = ''; ui.fcan = false; ui.q = ''; $('q').value = ''
+    ui.hideDone = false; store.set('hideDone', false)
+    ui.groupBy = 'none'; store.set('groupBy', 'none')
     dlg.close()
     render()
   })
@@ -375,7 +621,8 @@
   })
   $('dlgOk').addEventListener('click', () => {
     try {
-      const next = TT.normalize(JSON.parse($('dlgText').value))
+      const rawInput = $('dlgText').value
+      const next = TT.normalize(rawInput)
       if (!next.length) throw new Error('The list is empty.')
       tickets = next
       source = 'imported'
@@ -387,11 +634,34 @@
       render()
     } catch (err) {
       $('dlgErr').textContent = err instanceof SyntaxError
-        ? "That isn't valid JSON. Check for a missing comma or bracket."
+        ? "That isn't valid JSON or CSV. Check for a missing comma, quote, or bracket."
         : err.message
     }
   })
 
+  // ---- PWA and offline status ----
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    })
+  }
+
+  function updateNetStatus() {
+    const dot = $('netStatus')
+    if (!dot) return
+    if (navigator.onLine) {
+      dot.classList.remove('offline')
+      dot.title = 'Online'
+    } else {
+      dot.classList.add('offline')
+      dot.title = 'Offline (cached mode)'
+    }
+  }
+  window.addEventListener('online', updateNetStatus)
+  window.addEventListener('offline', updateNetStatus)
+  updateNetStatus()
+
   if (window.matchMedia('(min-width: 861px)').matches && source === 'sample') ui.current = 'tkt26826746'
   render()
 })()
+
