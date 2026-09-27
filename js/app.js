@@ -662,17 +662,30 @@
   // Chrome Extension bridge: re-ingest tickets whenever the extension scrapes a new one
   window.addEventListener('tt-ext-sync', e => {
     try {
-      const next = TT.normalize(e.detail.tickets)
+      const raw = e.detail.tickets
+      // Pre-fill hall from hostname when scraper couldn't determine it from room code.
+      // fsw/ysw -> Data Hall, xsw/ssw -> Network Suite (use first available hall of that type).
+      const dhHall = HALLS.find(h => h.type === 'DH')
+      const nsHall = HALLS.find(h => h.type === 'NS')
+      for (const t of raw) {
+        if (t.hall) continue
+        const hosts = (t.links || []).flatMap(l => [l.a && l.a.host, l.b && l.b.host]).filter(Boolean)
+        const hasXsw = hosts.some(h => /^xsw/.test(h))
+        const hasFsw = hosts.some(h => /^fsw/.test(h))
+        if (hasXsw && !hasFsw) { t.hall = nsHall ? nsHall.id : 'NS 1' }
+        else { t.hall = dhHall ? dhHall.id : 'DH A' }
+      }
+      const next = TT.normalize(raw)
       if (!next.length) return
       tickets = next
       source = 'imported'
-      // Keep current selection if the ticket still exists
       if (ui.current && !tickets.find(t => t.id === ui.current)) ui.current = null
-      // Expand halls to cover all imported halls
       ui.halls = new Set(tickets.map(t => t.hall))
       store.set('halls', [...ui.halls])
       render()
-    } catch (e) {}
+    } catch (err) {
+      console.error('[TT] tt-ext-sync normalize failed:', err.message)
+    }
   })
 })()
 
