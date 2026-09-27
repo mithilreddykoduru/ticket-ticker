@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Ticket Ticker",
+  "version": "1.0.0",
+  "description": "Hall ticket board for fiber work. Browse Cableguy tickets and they appear on the board automatically.",
+
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://www.metaenterprise.com/ticketing/*"
+  ],
+
+  "background": {
+    "service_worker": "extension/background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://www.metaenterprise.com/ticketing/execute/*"],
+      "js": ["extension/content/cableguy.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_title": "Ticket Ticker",
+    "default_icon": {
+      "16":  "extension/icons/icon-16.png",
+      "48":  "extension/icons/icon-48.png",
+      "128": "extension/icons/icon-128.png"
+    }
+  },
+
+  "icons": {
+    "16":  "extension/icons/icon-16.png",
+    "48":  "extension/icons/icon-48.png",
+    "128": "extension/icons/icon-128.png"
+  }
+}

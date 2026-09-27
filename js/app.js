@@ -608,20 +608,6 @@
   $('dlgTemplate').addEventListener('click', () => {
     $('dlgText').value = JSON.stringify(TT.template(), null, 2)
   })
-  $('dlgSample').addEventListener('click', () => {
-    tickets = TT.buildSample()
-    source = 'sample'
-    store.set('tickets', null)
-    ui.current = null
-    ui.halls = new Set(HALLS.map(h => h.id))
-    store.set('halls', [...ui.halls])
-    ui.states.clear(); ui.tiers.clear(); ui.posts.clear()
-    ui.row = ''; ui.fcan = false; ui.q = ''; $('q').value = ''
-    ui.hideDone = false; store.set('hideDone', false)
-    ui.groupBy = 'none'; store.set('groupBy', 'none')
-    dlg.close()
-    render()
-  })
   $('dlgFile').addEventListener('change', e => {
     const f = e.target.files[0]
     if (!f) return
