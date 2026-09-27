@@ -2,14 +2,19 @@
 // stores them in chrome.storage.local, and opens the board when the icon is clicked.
 
 // Open (or focus) the Ticket Ticker web app when the extension icon is clicked
+const APP_URLS = [
+  'https://ticket-ticker.vercel.app',
+  'http://localhost:8080',
+  'https://mithilreddykoduru.github.io/ticket-ticker'
+]
+
 chrome.action.onClicked.addListener(() => {
-  const appUrl = 'http://localhost:8080'
-  chrome.tabs.query({ url: appUrl + '/*' }, tabs => {
+  chrome.tabs.query({ url: APP_URLS.map(u => u + '/*') }, tabs => {
     if (tabs.length > 0) {
       chrome.tabs.update(tabs[0].id, { active: true })
       chrome.windows.update(tabs[0].windowId, { focused: true })
     } else {
-      chrome.tabs.create({ url: appUrl })
+      chrome.tabs.create({ url: APP_URLS[0] })
     }
   })
 })

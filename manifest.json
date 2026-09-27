@@ -8,7 +8,8 @@
   "host_permissions": [
     "https://www.metaenterprise.com/ticketing/*",
     "http://localhost/*",
-    "https://mithilreddykoduru.github.io/*"
+    "https://mithilreddykoduru.github.io/*",
+    "https://ticket-ticker.vercel.app/*"
   ],
 
   "background": {
@@ -24,7 +25,8 @@
     {
       "matches": [
         "http://localhost/*",
-        "https://mithilreddykoduru.github.io/ticket-ticker/*"
+        "https://mithilreddykoduru.github.io/ticket-ticker/*",
+        "https://ticket-ticker.vercel.app/*"
       ],
       "js": ["extension/content/bridge.js"],
       "run_at": "document_idle"
