@@ -368,5 +368,7 @@
 
   const obs = new MutationObserver(schedule)
   obs.observe(document.body, { childList: true, subtree: true, characterData: true })
+  
+  setInterval(schedule, 2000)
 
 })()
