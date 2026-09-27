@@ -234,13 +234,22 @@
   // ---- send to background ----
   function sendTicket (ticket) {
     if (!ticket) return
-    chrome.runtime.sendMessage({ type: 'TT_TICKET', ticket }, resp => {
-      if (chrome.runtime.lastError) { console.log(TAG, 'Send error:', chrome.runtime.lastError.message); return }
-      if (resp && resp.ok) {
-        console.log(TAG, 'Sent OK, total captured:', resp.count)
-        showBanner(`Ticket Ticker: captured ${ticket.id} (${resp.count} total)`)
-      }
-    })
+    try {
+      chrome.runtime.sendMessage({ type: 'TT_TICKET', ticket }, resp => {
+        if (chrome.runtime.lastError) {
+          // Extension was reloaded — disconnect so the old observer stops firing
+          obs.disconnect()
+          return
+        }
+        if (resp && resp.ok) {
+          console.log(TAG, 'Sent OK, total captured:', resp.count)
+          showBanner(`Ticket Ticker: captured ${ticket.id} (${resp.count} total)`)
+        }
+      })
+    } catch (e) {
+      // Extension context invalidated after a reload — stop the observer
+      obs.disconnect()
+    }
   }
 
   // ---- page banner ----
