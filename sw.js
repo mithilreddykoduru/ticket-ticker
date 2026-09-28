@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ticket-ticker-v1'
+const CACHE_NAME = 'ticket-ticker-v2'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -60,8 +60,25 @@ self.addEventListener('fetch', event => {
     return
   }
 
-  // Google Fonts or static assets: Cache-first with runtime caching
-  if (url.origin === location.origin || url.hostname.includes('googleapis') || url.hostname.includes('gstatic')) {
+  // Same-origin app code: network-first so fixes/deploys are picked up immediately,
+  // falling back to the cache only when offline.
+  if (url.origin === location.origin) {
+    event.respondWith(
+      fetch(req)
+        .then(networkRes => {
+          if (networkRes && networkRes.status === 200) {
+            const copy = networkRes.clone()
+            caches.open(CACHE_NAME).then(cache => cache.put(req, copy))
+          }
+          return networkRes
+        })
+        .catch(() => caches.match(req))
+    )
+    return
+  }
+
+  // Google Fonts or other cross-origin static assets: cache-first with runtime caching
+  if (url.hostname.includes('googleapis') || url.hostname.includes('gstatic')) {
     event.respondWith(
       caches.match(req).then(cached => {
         if (cached) return cached
