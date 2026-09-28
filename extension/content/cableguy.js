@@ -156,24 +156,24 @@
   // Extract location fields from a block of text
   function extractLoc(text) {
     let site = '', room = '', row = 0, rack = 0, elev = 0, post = ''
-    const locM = text.match(/\\b(MCA\\d)\\s*[,·-]\\s*([12][A-Da-d]|NS\\d)\\s*[,·-]\\s*(\\d+)\\s*[,·-]\\s*(\\d+)\\s*[,·-]\\s*([\\d.]+)/i)
+    const locM = text.match(/\b(MCA\d)\s*[,·-]\s*([12][A-Da-d]|NS\d)\s*[,·-]\s*(\d+)\s*[,·-]\s*(\d+)\s*[,·-]\s*([\d.]+)/i)
     if (locM) {
       [, site, room, row, rack, elev] = locM
       row = Number(row); rack = Number(rack); elev = parseFloat(elev)
     } else {
-      const siteM = text.match(/·\\s*(MCA\\d+)/i) || text.match(/\\b(MCA\\d+)\\b/i)
+      const siteM = text.match(/·\s*(MCA\d+)/i) || text.match(/\b(MCA\d+)\b/i)
       if (siteM) site = siteM[1].toUpperCase()
     }
-    const postM = text.match(/\\bpost\\s*[:\=]\\s*([OC])\\b/i) || text.match(/\\b([OC])\\s*(?:post|side)\\b/i)
+    const postM = text.match(/\bpost\s*[:=]\s*([OC])\b/i) || text.match(/\b([OC])\s*(?:post|side)\b/i)
     if (postM) post = postM[1].toUpperCase()
-    
+
     return { site, room, row, rack, elev, post }
   }
 
   // Extract work status
   function extractWork(text) {
-    const workM = text.match(/\\b(Circuit\\s+Audit|Cable\\s*-\\s*\\w+|Optic\\s*-\\s*\\w+|Needs\\s+Cleaning|Awaiting\\s+Parts|Open|check[-\\s]?in|check[-\\s]?out)\\b/i)
-    return workM ? workM[1].replace(/\\s+/g, ' ').trim() : 'Open'
+    const workM = text.match(/\b(Circuit\s+Audit|Cable\s*-\s*\w+|Optic\s*-\s*\w+|Needs\s+Cleaning|Awaiting\s+Parts|Open|check[-\s]?in|check[-\s]?out)\b/i)
+    return workM ? workM[1].replace(/\s+/g, ' ').trim() : 'Open'
   }
 
   // ---- main scrape ----
